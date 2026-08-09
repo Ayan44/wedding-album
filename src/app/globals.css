@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0d0f12;
+  --foreground: #f8fafc;
+  --accent-gold: #d4af37;
+  --accent-gold-light: #f3e5ab;
+  --accent-rose: #e2a8b3;
+  --card-bg: rgba(22, 27, 34, 0.75);
+  --card-border: rgba(212, 175, 55, 0.2);
+}
+
+html {
+  /* Prevent iOS font size adjustment */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background-color: #0b0d10;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(212, 175, 55, 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(226, 168, 179, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(15, 23, 42, 0.5) 0px, transparent 100%);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  min-height: 100vh;
+  /* Smooth scroll on mobile */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+}
+
+.font-serif-wedding {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+.glass-card {
+  background: rgba(18, 22, 29, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-card-hover {
+  transition: all 0.3s ease;
+}
+
+.glass-card-hover:hover {
+  border-color: rgba(212, 175, 55, 0.4);
+  box-shadow: 0 12px 40px 0 rgba(212, 175, 55, 0.15);
+}
+
+.gold-gradient-text {
+  background: linear-gradient(135deg, #fff 0%, #f3e5ab 50%, #d4af37 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gold-button {
+  background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%);
+  color: #0b0d10;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+  /* Minimum touch target 44px (Apple HIG) */
+  min-height: 44px;
+}
+
+.gold-button:hover {
+  background: linear-gradient(135deg, #e5c158 0%, #c5a059 100%);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+  transform: translateY(-1px);
+}
+
+.gold-button:active {
+  transform: translateY(0);
+}
+
+/* Custom scrollbar for photo preview grid */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.3);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.6);
+}
+
+/* Prevent double-tap zoom on buttons on iOS */
+button, a {
+  touch-action: manipulation;
+}
+
+/* Safe area insets for notch/home bar phones */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Fade-in animation for error messages */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
