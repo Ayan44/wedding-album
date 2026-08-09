@@ -1,7 +1,16 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { Camera, Image as ImageIcon, Plus, X, Upload, MessageSquare, AlertCircle } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Camera,
+  Image as ImageIcon,
+  Plus,
+  X,
+  Upload,
+  MessageSquare,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
 
 export interface SelectedFileItem {
   id: string;
@@ -17,7 +26,6 @@ interface PhotoUploadStepProps {
 }
 
 export default function PhotoUploadStep({
-  guestName,
   onUploadSubmit,
   isUploading = false,
   uploadProgress = 0,
@@ -26,27 +34,125 @@ export default function PhotoUploadStep({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  // Live WebRTC Camera Modal State
+  const [showLiveCamera, setShowLiveCamera] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+  const [cameraError, setCameraError] = useState("");
+
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Stop camera tracks when modal is closed
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+    setShowLiveCamera(false);
+    setCameraError("");
+  };
+
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
+  // Start live stream
+  const startLiveCamera = async (mode: "environment" | "user") => {
+    setCameraError("");
+    try {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((t) => t.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: mode }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+      setCameraStream(stream);
+      setShowLiveCamera(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err: unknown) {
+      console.warn("getUserMedia failed or denied, falling back to native file input:", err);
+      setShowLiveCamera(false);
+      // Fallback to standard input
+      if (cameraInputRef.current) {
+        cameraInputRef.current.click();
+      }
+    }
+  };
+
+  // Flip camera (front <-> back)
+  const toggleFacingMode = () => {
+    const nextMode = facingMode === "environment" ? "user" : "environment";
+    setFacingMode(nextMode);
+    startLiveCamera(nextMode);
+  };
+
+  // Capture photo from live video stream onto offscreen canvas
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // If user facing, mirror image horizontally
+    if (facingMode === "user") {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `photo_${Date.now()}.jpg`, {
+          type: "image/jpeg",
+        });
+
+        setSelectedItems((prev) => [
+          ...prev,
+          {
+            id: Math.random().toString(36).substring(2, 9),
+            file,
+            previewUrl: URL.createObjectURL(file),
+          },
+        ]);
+        stopCamera();
+      },
+      "image/jpeg",
+      0.92
+    );
+  };
 
   const handleFilesAdded = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     setError("");
 
     const newItems: SelectedFileItem[] = [];
-    const maxFiles = 10; // limit per batch
+    const maxFiles = 10;
 
     if (selectedItems.length + fileList.length > maxFiles) {
       setError(`Bir dəfəyə maksimum ${maxFiles} şəkil seçə bilərsiniz.`);
     }
 
     Array.from(fileList).forEach((file) => {
-      // Validate file type
       if (!file.type.startsWith("image/")) {
         setError("Yalnız şəkil faylları yüklənilə bilər.");
         return;
       }
-      // Validate file size (max 20MB)
       if (file.size > 20 * 1024 * 1024) {
         setError(`"${file.name}" faylı çox böyükdür (Maks: 20MB).`);
         return;
@@ -63,7 +169,6 @@ export default function PhotoUploadStep({
 
     setSelectedItems((prev) => [...prev, ...newItems]);
 
-    // Reset input values so same file can be re-selected if needed
     if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (galleryInputRef.current) galleryInputRef.current.value = "";
   };
@@ -93,11 +198,11 @@ export default function PhotoUploadStep({
 
   return (
     <div className="w-full max-w-lg mx-auto glass-card rounded-3xl p-6 sm:p-8 relative z-10 space-y-6 shadow-2xl border border-amber-500/20">
-      {/* Hidden File Inputs */}
+      {/* Fallback Hidden File Inputs */}
       <input
         type="file"
         ref={cameraInputRef}
-        accept="image/jpeg,image/png,image/webp,image/heic,image/*"
+        accept="image/*"
         capture="environment"
         className="hidden"
         onChange={(e) => handleFilesAdded(e.target.files)}
@@ -125,7 +230,7 @@ export default function PhotoUploadStep({
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <button
           type="button"
-          onClick={() => cameraInputRef.current?.click()}
+          onClick={() => startLiveCamera(facingMode)}
           disabled={isUploading}
           className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 transition-all duration-200 cursor-pointer active:scale-95 space-y-2"
         >
@@ -181,7 +286,7 @@ export default function PhotoUploadStep({
                 key={item.id}
                 className="relative aspect-square rounded-xl overflow-hidden group border border-amber-500/20 bg-slate-900"
               >
-                {/* eslint-disable-next-html-element-suppression */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={item.previewUrl}
                   alt="Önizləmə"
@@ -259,6 +364,59 @@ export default function PhotoUploadStep({
           </button>
         )}
       </div>
+
+      {/* ── Live In-App Camera Viewfinder Modal ── */}
+      {showLiveCamera && (
+        <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-between p-4 sm:p-6">
+          {/* Top Controls Bar */}
+          <div className="w-full max-w-md flex items-center justify-between z-10 pt-2">
+            <button
+              onClick={stopCamera}
+              className="w-10 h-10 rounded-full bg-slate-900/80 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <span className="text-xs font-semibold text-amber-300 uppercase tracking-widest">
+              Canlı Kamera
+            </span>
+            <button
+              onClick={toggleFacingMode}
+              className="w-10 h-10 rounded-full bg-slate-900/80 border border-amber-500/30 text-amber-300 hover:text-white flex items-center justify-center cursor-pointer"
+              title="Kameranı dəyiş"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Video Stream Container */}
+          <div className="relative w-full max-w-md aspect-[3/4] my-auto bg-black rounded-3xl overflow-hidden shadow-2xl border border-amber-500/30 flex items-center justify-center">
+            {cameraError ? (
+              <p className="text-rose-400 text-xs p-4 text-center">{cameraError}</p>
+            ) : (
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover ${
+                  facingMode === "user" ? "-scale-x-100" : ""
+                }`}
+              />
+            )}
+          </div>
+
+          {/* Bottom Shutter Capture Button */}
+          <div className="w-full max-w-md flex items-center justify-center pb-6 z-10">
+            <button
+              onClick={capturePhoto}
+              className="w-20 h-20 rounded-full border-4 border-amber-400 p-1.5 flex items-center justify-center bg-slate-900/50 hover:scale-105 active:scale-95 transition-transform cursor-pointer shadow-2xl"
+              title="Şəkli Çək"
+            >
+              <div className="w-full h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 shadow-inner" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
