@@ -62,6 +62,16 @@ export default function PhotoUploadStep({
     };
   }, [cameraStream]);
 
+  // Attach stream to video element when DOM element is mounted
+  useEffect(() => {
+    if (showLiveCamera && cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream;
+      videoRef.current
+        .play()
+        .catch((err) => console.warn("Video play error:", err));
+    }
+  }, [showLiveCamera, cameraStream]);
+
   // Start live stream
   const startLiveCamera = async (mode: "environment" | "user") => {
     setCameraError("");
@@ -70,14 +80,11 @@ export default function PhotoUploadStep({
         cameraStream.getTracks().forEach((t) => t.stop());
       }
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: mode }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: { facingMode: { ideal: mode }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
       setCameraStream(stream);
       setShowLiveCamera(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
     } catch (err: unknown) {
       console.warn("getUserMedia failed or denied, falling back to native file input:", err);
       setShowLiveCamera(false);
