@@ -97,7 +97,7 @@ export default function PhotoUploadStep({
       <input
         type="file"
         ref={cameraInputRef}
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/*"
         capture="environment"
         className="hidden"
         onChange={(e) => handleFilesAdded(e.target.files)}
