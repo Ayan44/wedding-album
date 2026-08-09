@@ -88,8 +88,7 @@ export function uploadImageToCloudinary(
       reject(new Error("Şəbəkə kəsilməsi baş verdi. İnternet əlaqənizi yoxlayın."));
     };
 
-    xhr.send(formData);
-
+    // Send single XHR request
     xhr.send(formData);
   });
 }
