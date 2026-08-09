@@ -20,9 +20,16 @@ export function uploadImageToCloudinary(
   options: UploadOptions
 ): Promise<UploadResult> {
   return new Promise((resolve, reject) => {
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "demo";
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "toy_unsigned_preset";
-    const folder = process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER || "toy-2026";
+    const cloudName =
+      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "demo";
+    const uploadPreset =
+      process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET ||
+      process.env.CLOUDINARY_UPLOAD_PRESET ||
+      "toy_unsigned_preset";
+    const folder =
+      process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER ||
+      process.env.CLOUDINARY_FOLDER ||
+      "toy-2026";
 
     const formData = new FormData();
     formData.append("file", file);
@@ -59,38 +66,29 @@ export function uploadImageToCloudinary(
             format: response.format,
             created_at: response.created_at,
           });
-        } catch (err) {
+        } catch {
           reject(new Error("Cloudinary-dən gələn cavab oxuna bilmədi."));
         }
       } else {
-        // Fallback for local demo mode if Cloudinary cloud_name is demo
-        if (cloudName === "demo" || xhr.status === 400 || xhr.status === 401) {
-          console.warn("Cloudinary demo mode / credentials missing fallback active.");
-          resolve({
-            public_id: `demo_${Date.now()}`,
-            secure_url: URL.createObjectURL(file),
-            format: file.type.split("/")[1] || "jpeg",
-            created_at: new Date().toISOString(),
-          });
-          return;
+        let errMessage = `Yükləmə xətası (${xhr.status}).`;
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (res.error?.message) {
+            errMessage = `Cloudinary xətası: ${res.error.message}`;
+          }
+        } catch {
+          // ignore
         }
-        reject(new Error(`Yükləmə xətası (${xhr.status}): Cloudinary hesabı tənzimlənməyib.`));
+        console.error("Cloudinary upload failed:", xhr.responseText);
+        reject(new Error(errMessage));
       }
     };
 
     xhr.onerror = () => {
-      // Fallback preview mode if offline or unconfigured
-      if (cloudName === "demo") {
-        resolve({
-          public_id: `demo_${Date.now()}`,
-          secure_url: URL.createObjectURL(file),
-          format: file.type.split("/")[1] || "jpeg",
-          created_at: new Date().toISOString(),
-        });
-        return;
-      }
       reject(new Error("Şəbəkə kəsilməsi baş verdi. İnternet əlaqənizi yoxlayın."));
     };
+
+    xhr.send(formData);
 
     xhr.send(formData);
   });
