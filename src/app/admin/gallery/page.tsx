@@ -302,31 +302,12 @@ export default function AdminGalleryPage() {
                     src={photo.secure_url}
                     alt={`${photo.guestName} tərəfindən şəkil`}
                     loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover transition-transform duration-300"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end justify-center pb-3">
-                    <span className="text-xs text-amber-200 font-medium bg-slate-950/70 px-3 py-1 rounded-full">
-                      Böyüt
-                    </span>
-                  </div>
                 </div>
 
-                {/* Delete button — top-right corner, visible on hover */}
-                <button
-                  onClick={(e) => handleDeletePhoto(e, photo.public_id)}
-                  disabled={deletingId === photo.public_id}
-                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-slate-950/80 border border-rose-500/40 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer z-10 disabled:opacity-50"
-                  title="Şəkli sil"
-                >
-                  {deletingId === photo.public_id ? (
-                    <div className="w-3.5 h-3.5 border border-rose-400 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Trash2 className="w-3.5 h-3.5" />
-                  )}
-                </button>
-
                 {/* Card Body */}
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                <div className="p-3 flex-1 flex flex-col justify-between space-y-2">
                   <div className="space-y-2">
                     <div className="flex items-center gap-1.5 text-amber-300 text-sm font-semibold">
                       <User className="w-4 h-4 text-amber-400 shrink-0" />
@@ -335,13 +316,29 @@ export default function AdminGalleryPage() {
                     {photo.message && (
                       <div className="bg-slate-950/60 p-2.5 rounded-xl border border-amber-500/10 flex items-start gap-2 text-xs text-slate-300">
                         <MessageSquare className="w-3.5 h-3.5 text-amber-400/70 shrink-0 mt-0.5" />
-                        <p className="italic line-clamp-3">"{photo.message}"</p>
+                        <p className="italic line-clamp-2">"{photo.message}"</p>
                       </div>
                     )}
                   </div>
-                  <div className="pt-2 border-t border-slate-800/80 flex items-center gap-1.5 text-[11px] text-slate-400">
-                    <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span>{formatDate(photo.created_at)}</span>
+                  {/* Footer: date + delete button — always visible */}
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span>{formatDate(photo.created_at)}</span>
+                    </div>
+                    <button
+                      onClick={(e) => handleDeletePhoto(e, photo.public_id)}
+                      disabled={deletingId === photo.public_id}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 active:scale-95 transition-all text-[11px] font-medium cursor-pointer disabled:opacity-50"
+                      title="Şəkli sil"
+                    >
+                      {deletingId === photo.public_id ? (
+                        <div className="w-3 h-3 border border-rose-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3 h-3" />
+                      )}
+                      <span>Sil</span>
+                    </button>
                   </div>
                 </div>
               </div>
