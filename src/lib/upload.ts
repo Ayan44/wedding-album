@@ -12,89 +12,90 @@ export interface UploadOptions {
 }
 
 /**
- * Directly upload an image file from browser to Cloudinary using Unsigned Preset
- * Attaches guest name and optional greeting message as Cloudinary context metadata.
+ * Upload an image to Cloudinary using fetch API (more reliable than XHR on mobile)
  */
-export function uploadImageToCloudinary(
+export async function uploadImageToCloudinary(
   file: File,
   options: UploadOptions
 ): Promise<UploadResult> {
-  return new Promise((resolve, reject) => {
-    const cloudName =
-      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "demo";
-    const uploadPreset =
-      process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET ||
-      process.env.CLOUDINARY_UPLOAD_PRESET ||
-      "toy_unsigned_preset";
-    const folder =
-      process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER ||
-      process.env.CLOUDINARY_FOLDER ||
-      "toy-2026";
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  const folder = process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER || "toy-2026";
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", uploadPreset);
-    formData.append("folder", folder);
+  if (!cloudName || !uploadPreset) {
+    throw new Error(
+      "Cloudinary konfiqurasiyası tamamlanmayıb. Zəhmət olmasa administrator ilə əlaqə saxlayın."
+    );
+  }
 
-    // Format context metadata according to Cloudinary spec: key=value|key=value
-    const nameMeta = encodeURIComponent(options.guestName.replace(/[|=]/g, " "));
-    const msgMeta = options.message
-      ? encodeURIComponent(options.message.replace(/[|=]/g, " "))
-      : "";
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", uploadPreset);
+  formData.append("folder", folder);
 
-    formData.append("context", `name=${nameMeta}|message=${msgMeta}`);
+  // Attach guest name and message as Cloudinary context metadata
+  const nameMeta = options.guestName.replace(/[|=]/g, " ");
+  const msgMeta = options.message
+    ? options.message.replace(/[|=]/g, " ")
+    : "";
+  formData.append("context", `name=${nameMeta}|message=${msgMeta}`);
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
+  // Simulate progress (fetch doesn't natively support upload progress)
+  let progressInterval: ReturnType<typeof setInterval> | null = null;
+  if (options.onProgress) {
+    let fakeProgress = 0;
+    options.onProgress(5);
+    progressInterval = setInterval(() => {
+      fakeProgress = Math.min(fakeProgress + 8, 85);
+      options.onProgress?.(fakeProgress);
+    }, 300);
+  }
 
-    if (xhr.upload && options.onProgress) {
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const percent = (e.loaded / e.total) * 100;
-          options.onProgress?.(percent);
-        }
-      };
+  try {
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    if (progressInterval) {
+      clearInterval(progressInterval);
     }
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const response = JSON.parse(xhr.responseText);
-          resolve({
-            public_id: response.public_id,
-            secure_url: response.secure_url,
-            format: response.format,
-            created_at: response.created_at,
-          });
-        } catch {
-          reject(new Error("Cloudinary-dən gələn cavab oxuna bilmədi."));
+    if (!response.ok) {
+      let errMessage = `Yükləmə xətası (${response.status}).`;
+      try {
+        const errData = await response.json();
+        if (errData?.error?.message) {
+          errMessage = `Cloudinary xətası: ${errData.error.message}`;
         }
-      } else {
-        let errMessage = `Yükləmə xətası (${xhr.status}).`;
-        try {
-          const res = JSON.parse(xhr.responseText);
-          if (res.error?.message) {
-            errMessage = `Cloudinary xətası: ${res.error.message}`;
-          }
-        } catch {
-          // ignore
-        }
-        console.error("Cloudinary upload failed:", xhr.responseText);
-        reject(new Error(errMessage));
+      } catch {
+        // ignore parse error
       }
-    };
+      throw new Error(errMessage);
+    }
 
-    xhr.onerror = () => {
-      reject(new Error("Şəbəkə kəsilməsi baş verdi. İnternet əlaqənizi yoxlayın."));
-    };
+    const data = await response.json();
+    options.onProgress?.(100);
 
-    // Send single XHR request
-    xhr.send(formData);
-  });
+    return {
+      public_id: data.public_id,
+      secure_url: data.secure_url,
+      format: data.format,
+      created_at: data.created_at,
+    };
+  } catch (err) {
+    if (progressInterval) {
+      clearInterval(progressInterval);
+    }
+    throw err;
+  }
 }
 
 /**
- * Batch upload multiple image files sequentially with overall progress calculation
+ * Batch upload multiple image files sequentially with overall progress
  */
 export async function uploadMultipleImagesToCloudinary(
   files: File[],
@@ -104,11 +105,11 @@ export async function uploadMultipleImagesToCloudinary(
   const totalFiles = files.length;
 
   for (let i = 0; i < totalFiles; i++) {
-    const file = files[i];
-    const fileResult = await uploadImageToCloudinary(file, {
+    const fileResult = await uploadImageToCloudinary(files[i], {
       ...options,
       onProgress: (fileProgress) => {
-        const overallProgress = ((i + fileProgress / 100) / totalFiles) * 100;
+        const overallProgress =
+          ((i + fileProgress / 100) / totalFiles) * 100;
         options.onProgress?.(overallProgress);
       },
     });
